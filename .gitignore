@@ -23,6 +23,7 @@ Makefile*
 # QtCreator
 
 *.autosave
+build*
 
 # =========================
 # Operating System Files
@@ -36,8 +37,7 @@ Makefile*
 .LSOverride
 
 # Icon must ends with two \r.
-Icon
-
+Icon
 # Thumbnails
 ._*
 
