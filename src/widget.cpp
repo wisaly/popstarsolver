@@ -36,9 +36,7 @@ void Widget::on_btnStep_clicked()
     ui->btnStep->setText(QString("step %1").arg(step_));
 
     Board::Move m = board_.solution()[step_];
-    QList<Board::Node> s;
-    board_.mark(board_.d(),m.n.x,m.n.y,s);
-    board_.fall(board_.d(),0,Board::N - 1);
+    board_.select(m.n.x,m.n.y);
     step_++;
 
     ui->board->update();

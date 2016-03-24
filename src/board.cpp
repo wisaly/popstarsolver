@@ -18,9 +18,11 @@ Board::Board()
 
     for (int i = 0;i < 100;i++)
         scr[i] = i * i * 5;
+
+    qsrand(811);
 }
 
-Qt::GlobalColor Board::clr(int n)
+Qt::GlobalColor Board::color(int n)
 {
     return clrs[n % 6];
 }
@@ -29,27 +31,16 @@ void Board::rand()
 {
     for (int i = 0;i < N;i++)
         for (int j = 0;j < N;j++)
-            d_[i][j] = qrand() % 5 + 1;
+            d_[i][j] = qrand() % M + 1;
 }
 
-void Board::solve()
+void Board::select(int x, int y)
 {
-    QElapsedTimer timer;
-
-    dbgPut(0,d_);
-    timer.start();
-    qDebug() << "Solve start...";
-
-    solutionCount_ = 0;
-    bestScore_ = 0;
-
-    QList<Move> moves;
-    solve(0,d_,moves);
-
-    qDebug() << "Solve over : " << timer.elapsed() << "ms";
-    qDebug() << "Best score : " << bestScore_;
-    dbgPut(bestMove_ );
+    QList<Node> s;
+    mark(d_,x,y,s);
+    fall(d_,0,N-1);
 }
+
 
 void Board::dbgPut(int c,int a[N][N])
 {
@@ -145,14 +136,64 @@ void Board::mark(int c[N][N], int x, int y, QList<Node> &ss)
     }
 }
 
-void Board::solve(int score, int d[N][N], QList<Move> &moves)
+void Board::solve()
+{
+    QElapsedTimer timer;
+
+    dbgPut(0,d_);
+    timer.start();
+    qDebug() << "Solve start...";
+
+    solutionCount_ = 0;
+    bestScore_ = 0;
+    searchHistory_.clear();
+
+    QList<Move> moves;
+    solve(0,d_,moves);
+
+    qDebug() << "Solve over : " << timer.elapsed() << "ms";
+    qDebug() << "Best score : " << bestScore_;
+    dbgPut(bestMove_ );
+}
+
+void Board::averageCells()
+{
+    const int rounds = 10000;
+    int totalCells = 0;
+    for (int i = 0;i < rounds;i++)
+    {
+        rand();
+        QList<QList<Node> > s; // valid states
+        for (int i = N - 1;i >= 0;i--)
+        {
+            for (int j = 0;j < N;j++)
+            {
+                if (d_[i][j] == 0)
+                    continue;
+
+                QList<Node> ss; // single state
+                mark(d_,j,i,ss);
+
+                if (ss.count() >= 2)
+                    s.append(ss);
+            }
+        }
+        totalCells += s.count();
+    }
+    qDebug() << "avage cells:" << (double)totalCells / rounds;
+}
+
+int Board::solve(int score, int d[N][N], QList<Move> &moves)
 {
     int c[N][N]; // temp flag map
     for (int i = 0;i < N;i++)
         for (int j = 0;j < N;j++)
             c[i][j] = d[i][j];
 
-    //dbgPut(moves.count(),c);
+    QByteArray currentState = stateSign(d);
+    if (searchHistory_.contains(currentState))
+        if (score + searchHistory_[currentState] <= bestScore_)
+            return 0;
 
     QList<QList<Node> > s; // valid states
     for (int i = N - 1;i >= 0;i--)
@@ -174,14 +215,6 @@ void Board::solve(int score, int d[N][N], QList<Move> &moves)
     if (s.count() == 0)
     {
         solutionCount_ ++;
-        if (solutionCount_ % 10000 == 0)
-        {
-            qDebug() << "Find solution "
-                     << solutionCount_
-                     << " score : "
-                     << score
-                     << " : depth " << moves.count();
-        }
         //dbgPut(moves);
         //dbgPut(1,d);
 
@@ -189,18 +222,31 @@ void Board::solve(int score, int d[N][N], QList<Move> &moves)
         {
             bestScore_ = score;
             bestMove_ = moves;
+
+            qDebug() << "Find solution "
+                     << solutionCount_
+                     << " best score : "
+                     << bestScore_
+                     << " : depth " << moves.count();
         }
 
-        return;
+        return score;
     }
 
     // save current
     for (int i = 0;i < N;i++)
         for (int j = 0;j < N;j++)
             c[i][j] = d[i][j];
+
+    int currentBest = 0;
     // dfs
     for (int i = 0;i < s.count();i++)
     {
+        if (!worthSearch(score,d))
+        {
+            return 0;
+        }
+
         int xfrom = N - 1;
         int xto = 0;
 
@@ -224,14 +270,46 @@ void Board::solve(int score, int d[N][N], QList<Move> &moves)
         moves.append(m);
 
         // recur
-        solve(score + scr[ss.count()],c,moves);
+        int solveScore = solve(score + scr[ss.count()],c,moves);
+
+        if (solveScore > currentBest)
+            currentBest = solveScore;
 
         // restore
         for (int i = 0;i < N;i++)
             for (int j = 0;j < N;j++)
                 c[i][j] = d[i][j];
 
-
         moves.removeLast();
     }
+
+    searchHistory_.insert(currentState,currentBest - score);
+
+    return currentBest;
+}
+
+bool Board::worthSearch(int score, int c[N][N])
+{
+    int rest[M]={};
+    for (int i = 0;i < N;i++)
+        for (int j = 0;j < N;j++)
+            if (c[i][j] != 0)
+                rest[c[i][j] - 1]++;
+
+    int restScore = 0;
+    for (int i = 0;i < M;i++)
+        restScore += scr[rest[i]];
+
+    return score + restScore > bestScore_;
+}
+
+QByteArray Board::stateSign(int c[N][N])
+{
+    QByteArray result(N*N,0);
+    int k = 0;
+    for (int i = 0;i < N;i++)
+        for (int j = 0;j < N;j++)
+            result[k++]=c[i][j];
+
+    return result;
 }

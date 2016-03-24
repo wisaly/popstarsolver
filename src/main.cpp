@@ -6,9 +6,8 @@ int main(int argc, char *argv[])
 {
     QApplication a(argc, argv);
 
-//    Board b;
-//    b.rand();
-//    b.solve();
+    //Board b;
+    //b.averageCells();
 
     Widget w;
     w.show();
