@@ -35,7 +35,7 @@ void Widget::on_btnStep_clicked()
     }
     ui->btnStep->setText(QString("step %1").arg(step_));
 
-    Board::Move m = board_.solution()[step_];
+    GameBoard::Move m = board_.solution()[step_];
     board_.select(m.n.x,m.n.y);
     step_++;
 

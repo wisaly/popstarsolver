@@ -2,7 +2,7 @@
 #define BOARDWIDGET_H
 
 #include <QWidget>
-#include "board.h"
+#include "gameboard.h"
 
 class BoardWidget : public QWidget
 {
@@ -13,13 +13,13 @@ public:
     void paintEvent(QPaintEvent *event);
     void mousePressEvent(QMouseEvent *event);
 
-    void setBoard(Board *board) { board_ = board; }
+    void setBoard(GameBoard *board) { board_ = board; }
 signals:
 
 public slots:
 
 private:
-    Board *board_;
+    GameBoard *board_;
     int unitWidth_ = 0;
     int unitHeight_ = 0;
 };

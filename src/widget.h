@@ -1,7 +1,7 @@
 #ifndef WIDGET_H
 #define WIDGET_H
 
-#include "board.h"
+#include "gameboard.h"
 
 #include <QWidget>
 
@@ -24,7 +24,7 @@ public slots:
 
 private:
     Ui::Widget *ui;
-    Board board_;
+    GameBoard board_;
     int step_;
 };
 

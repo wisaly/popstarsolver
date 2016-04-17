@@ -1,56 +1,38 @@
 #ifndef BOARD_H
 #define BOARD_H
 
-#include <QObject>
-#include <QList>
-#include <QHash>
+#include "move.h"
 
 class Board
 {
 public:
+    // board size, colors
+    enum { N = 10, NC = 5, BONUS = 1000};
+
     Board();
-    enum{ N = 9, M = 5};
+    Board(const Board &o);
 
-    class Node
-    {
-    public:
-        Node(int xx,int yy):x(xx),y(yy){}
-        int x;
-        int y;
-    };
-    class Move
-    {
-    public:
-        Move(Node node,int score):n(node),s(score) {}
-        Node n;
-        int s;
-    };
-
-    int at(int x, int y) { return d_[x][y]; }
-    static Qt::GlobalColor color(int n);
-
-    void rand();
-    void select(int x, int y);
-
-    void solve();
-    QList<Move> &solution() { return bestMove_; }
-
-    void averageCells();
-
+    // get color at position
+    inline int at(int x, int y) { return d_[x][y]; }
+    // whether the board is empty or not
+    inline bool isEmpty() { return d_[0][N - 1] == 0; }
+    // get available moves
+    QList<Move> moves();
+    QList<Move> tabuMoves(int tabu);
+    // get end-game score
+    int endScore();
+    // get the zobrist hash of the board
+    long hash();
+    // make a move
+    int step(Move &move);
+    // upper score limit of current board
+    int upperScore();
 private:
-    void dbgPut(int c, int a[N][N]);
-    void dbgPut(QList<Move> &moves);
-    void fall(int c[N][N], int xfrom, int xto);
-    void mark(int c[N][N], int x, int y, QList<Node> &ss);
-    int solve(int score, int d[N][N], QList<Move> &moves);
-    bool worthSearch(int score, int c[N][N]);
-    QByteArray stateSign(int c[N][N]);
+    static void mark(int c[N][N], int x, int y, Move &move);
+    static void copy(int dst[N][N], const int src[N][N]);
+    static void fall(int d[N][N], Move &move);
 private:
     int d_[N][N];
-    int solutionCount_;
-    int bestScore_;
-    QList<Move> bestMove_;
-    QHash<QByteArray,int> searchHistory_;
 };
 
 #endif // BOARD_H

@@ -1,315 +1,242 @@
-#include <QQueue>
-#include <QStack>
-#include <QPair>
-#include <QDebug>
-#include <QElapsedTimer>
 #include "board.h"
+#include <QQueue>
+#include <cstring>
 
-const Qt::GlobalColor clrs[6] =
-{Qt::white,Qt::red,Qt::green,Qt::yellow,Qt::blue,Qt::magenta};
+// zobrist hash random number cahce
+class ZobristMetrix
+{
+public:
+    ZobristMetrix()
+    {
+        for (int i = 0; i < Board::N; i++)
+            for (int j = 0; j < Board::N; j++)
+                for (int c = 0; c < Board::NC + 1; c++)
+                    d_[i][j][c] = qrand();
+    }
+    long d_[Board::N][Board::N][Board::NC + 1];
+};
 
-int scr[100];
+Q_GLOBAL_STATIC(ZobristMetrix, g_zobristMetrix)
 
 Board::Board()
 {
-    for (int i = 0;i < N;i++)
-        for (int j = 0;j < N;j++)
-            d_[i][j] = 0;
 
-    for (int i = 0;i < 100;i++)
-        scr[i] = i * i * 5;
-
-    qsrand(811);
 }
 
-Qt::GlobalColor Board::color(int n)
+Board::Board(const Board &o)
 {
-    return clrs[n % 6];
+    copy(d_, o.d_);
 }
 
-void Board::rand()
+void Board::mark(int c[N][N], int x, int y, Move &move)
 {
-    for (int i = 0;i < N;i++)
-        for (int j = 0;j < N;j++)
-            d_[i][j] = qrand() % M + 1;
-}
+    move.cell_.clear();
+    move.color_ = c[y][x];
+    move.isVS_ = true;
 
-void Board::select(int x, int y)
-{
-    QList<Node> s;
-    mark(d_,x,y,s);
-    fall(d_,0,N-1);
-}
-
-
-void Board::dbgPut(int c,int a[N][N])
-{
-    qDebug() << c << ":";
-    for (int i = 0;i < N;i++)
+    QQueue<Move::Node> q; // search quque
+    q.enqueue(Move::Node(x,y));
+    while(!q.empty())
     {
-        QString s;
-        for (int j = 0;j < N;j++)
-            s += QString::number(a[i][j]) + " ";
+        Move::Node h = q.dequeue();
+        move.cell_.append(h);
 
-        qDebug() << s;
+        c[h.y_][h.x_] = 0;
+
+        // left
+        if (h.x_ > 0 && c[h.y_][h.x_ - 1] == move.color_)
+        {
+            q.enqueue(Move::Node(h.x_ - 1, h.y_));
+            move.isVS_ = false;
+        }
+        // right
+        if (h.x_ < N - 1 && c[h.y_][h.x_ + 1] == move.color_)
+        {
+            q.enqueue(Move::Node(h.x_ + 1, h.y_));
+            move.isVS_ = false;
+        }
+        // up
+        if (h.y_ > 0 && c[h.y_ - 1][h.x_] == move.color_)
+            q.enqueue(Move::Node(h.x_, h.y_ - 1));
+        // down
+        if (h.y_ < N - 1 && c[h.y_ + 1][h.x_] == move.color_)
+            q.enqueue(Move::Node(h.x_, h.y_ + 1));
     }
 }
 
-void Board::dbgPut(QList<Move> &moves)
+void Board::copy(int dst[N][N], const int src[N][N])
 {
-    QString solution;
-    for (int i = 0; i < moves.count();i++)
-        solution += QString("(%1,%2)[%3]->")
-                .arg(moves[i].n.x)
-                .arg(moves[i].n.y)
-                .arg(moves[i].s);
-
-    solution = solution.left(solution.length() - 2);
-
-    qDebug() << "Moves : " << solution;
+    std::memcpy(dst, src, sizeof(int) * N * N);
 }
 
-void Board::fall(int c[N][N], int xfrom, int xto)
+void Board::fall(int d[N][N], Move &move)
 {
-    for (int x = xfrom;x <= xto;x++)
+    int xfrom = N - 1;
+    int xto = 0;
+
+    // remove target
+    for (Move::Node &n : move.cell_)
     {
-        for (int y = N-1;y > 0;y--)
+        d[n.y_][n.x_] = 0;
+
+        if (n.x_ < xfrom)
+            xfrom = n.x_;
+        if (n.x_ > xto)
+            xto = n.x_;
+    }
+
+    // fall down
+    for (int x = xfrom; x <= xto; x++)
+    {
+        for (int y = N - 1; y > 0;y--)
         {
             int e = 0; // empty count
-            for (int yy = y;yy >= 0 && c[yy][x] == 0;yy--)
+            for (int yy = y; yy >= 0 && d[yy][x] == 0; yy--)
                 e++;
 
             if (e > 0 && y >= e)
             {
                 // move down
-                for (int yy = y;yy >= e;yy--)
-                    c[yy][x] = c[yy - e][x];
+                for (int yy = y; yy >= e; yy--)
+                    d[yy][x] = d[yy - e][x];
                 // fill empty
-                for (int yy = e - 1;yy >= 0;yy--)
-                    c[yy][x] = 0;
+                for (int yy = e - 1; yy >= 0; yy--)
+                    d[yy][x] = 0;
 
                 y -= e - 1;
             }
         }
     }
     // fall left
-    for (int x = xfrom;x <= xto;x++)
+    for (int x = xfrom; x <= xto; x++)
     {
         int e = 0;
-        for (int xx = x; xx <= xto && c[N - 1][xx] == 0;xx++)
+        for (int xx = x; xx <= xto && d[N - 1][xx] == 0; xx++)
             e++;
         if (e > 0 && (x + e) < N)
         {
             // move left
-            for (int xx = x;xx < N - e;xx++)
-                for (int y = 0;y < N;y++)
-                    c[y][xx] = c[y][xx + e];
+            for (int xx = x; xx < N - e; xx++)
+                for (int y = 0; y < N; y++)
+                    d[y][xx] = d[y][xx + e];
             // fill empty
-            for (int xx = N - e;xx < N;xx++)
-                for (int y = 0;y < N;y++)
-                    c[y][xx] = 0;
+            for (int xx = N - e; xx < N; xx++)
+                for (int y = 0; y < N; y++)
+                    d[y][xx] = 0;
             x += e - 1;
         }
     }
 }
 
-void Board::mark(int c[N][N], int x, int y, QList<Node> &ss)
+QList<Move> Board::moves()
 {
-    int f = c[y][x];
-    QQueue<Node> q; // search quque
-    q.enqueue(Node(x,y));
-    while(!q.empty())
-    {
-        Node h = q.dequeue();
-        ss.append(h);
-
-        c[h.y][h.x] = 0;
-
-        if (h.x > 0 && c[h.y][h.x - 1] == f)
-            q.enqueue(Node(h.x - 1,h.y));
-        if (h.x < N - 1 && c[h.y][h.x + 1] == f)
-            q.enqueue(Node(h.x + 1,h.y));
-        if (h.y > 0 && c[h.y - 1][h.x] == f)
-            q.enqueue(Node(h.x,h.y - 1));
-        if (h.y < N - 1 && c[h.y + 1][h.x] == f)
-            q.enqueue(Node(h.x,h.y + 1));
-    }
+    return tabuMoves(0);
 }
 
-void Board::solve()
+QList<Move> Board::tabuMoves(int tabu)
 {
-    QElapsedTimer timer;
+    QList<Move> result;
+    int t[N][N];
+    copy(t,d_);
 
-    dbgPut(0,d_);
-    timer.start();
-    qDebug() << "Solve start...";
-
-    solutionCount_ = 0;
-    bestScore_ = 0;
-    searchHistory_.clear();
-
-    QList<Move> moves;
-    solve(0,d_,moves);
-
-    qDebug() << "Solve over : " << timer.elapsed() << "ms";
-    qDebug() << "Best score : " << bestScore_;
-    dbgPut(bestMove_ );
-}
-
-void Board::averageCells()
-{
-    const int rounds = 10000;
-    int totalCells = 0;
-    for (int i = 0;i < rounds;i++)
+    Move m;
+    for (int y = N - 1;y >= 0;y--)
     {
-        rand();
-        QList<QList<Node> > s; // valid states
-        for (int i = N - 1;i >= 0;i--)
+        for (int x = 0;x < N;x++)
         {
-            for (int j = 0;j < N;j++)
-            {
-                if (d_[i][j] == 0)
-                    continue;
-
-                QList<Node> ss; // single state
-                mark(d_,j,i,ss);
-
-                if (ss.count() >= 2)
-                    s.append(ss);
-            }
-        }
-        totalCells += s.count();
-    }
-    qDebug() << "avage cells:" << (double)totalCells / rounds;
-}
-
-int Board::solve(int score, int d[N][N], QList<Move> &moves)
-{
-    int c[N][N]; // temp flag map
-    for (int i = 0;i < N;i++)
-        for (int j = 0;j < N;j++)
-            c[i][j] = d[i][j];
-
-    QByteArray currentState = stateSign(d);
-    if (searchHistory_.contains(currentState))
-        if (score + searchHistory_[currentState] <= bestScore_)
-            return 0;
-
-    QList<QList<Node> > s; // valid states
-    for (int i = N - 1;i >= 0;i--)
-    {
-        for (int j = 0;j < N;j++)
-        {
-            if (c[i][j] == 0)
+            if (t[y][x] == 0 || t[y][x] == tabu)
                 continue;
 
-            QList<Node> ss; // single state
-            mark(c,j,i,ss);
+            mark(t, x, y, m);
 
-            if (ss.count() >= 2)
-                s.append(ss);
+            if (m.size() < 2)
+                continue;
+
+            // perform VS-pruning
+            if (m.isVS_ &&
+                (y == N - 1 || t[y + 1][x] == 0) &&
+                (y > 0 || x == 0))
+                continue;
+
+            result.append(m);
         }
     }
 
-    // solved
-    if (s.count() == 0)
-    {
-        solutionCount_ ++;
-        //dbgPut(moves);
-        //dbgPut(1,d);
+    if (!result.isEmpty() || tabu == 0)
+        return result;
 
-        if (score > bestScore_)
-        {
-            bestScore_ = score;
-            bestMove_ = moves;
-
-            qDebug() << "Find solution "
-                     << solutionCount_
-                     << " best score : "
-                     << bestScore_
-                     << " : depth " << moves.count();
-        }
-
-        return score;
-    }
-
-    // save current
-    for (int i = 0;i < N;i++)
-        for (int j = 0;j < N;j++)
-            c[i][j] = d[i][j];
-
-    int currentBest = 0;
-    // dfs
-    for (int i = 0;i < s.count();i++)
-    {
-        if (!worthSearch(score,d))
-        {
-            return 0;
-        }
-
-        int xfrom = N - 1;
-        int xto = 0;
-
-        // kill stars
-        QList<Node> &ss = s[i];
-        for (int j = 0;j < ss.count();j++)
-        {
-            Node &n = ss[j];
-            c[n.y][n.x] = 0;
-
-            if (n.x < xfrom)
-                xfrom = n.x;
-            if (n.x > xto)
-                xto = n.x;
-        }
-
-        // fall down
-        fall(c, xfrom, xto);
-
-        Move m(ss[0],ss.count());
-        moves.append(m);
-
-        // recur
-        int solveScore = solve(score + scr[ss.count()],c,moves);
-
-        if (solveScore > currentBest)
-            currentBest = solveScore;
-
-        // restore
-        for (int i = 0;i < N;i++)
-            for (int j = 0;j < N;j++)
-                c[i][j] = d[i][j];
-
-        moves.removeLast();
-    }
-
-    searchHistory_.insert(currentState,currentBest - score);
-
-    return currentBest;
+    return tabuMoves(0);
 }
 
-bool Board::worthSearch(int score, int c[N][N])
+int Board::endScore()
 {
-    int rest[M]={};
-    for (int i = 0;i < N;i++)
-        for (int j = 0;j < N;j++)
-            if (c[i][j] != 0)
-                rest[c[i][j] - 1]++;
+    if (isEmpty())
+        return BONUS;
 
-    int restScore = 0;
-    for (int i = 0;i < M;i++)
-        restScore += scr[rest[i]];
+    int score = 0;
+    int clr[NC + 1]={};
+    int t[N][N];
+    copy(t, d_);
 
-    return score + restScore > bestScore_;
+    for (int i = 0; i < N; i++)
+    {
+        for (int j = 0; j < N; j++)
+        {
+            if (t[i][j])
+            {
+                Move m;
+                mark(t, j, i, m);
+                if (m.size() == 1)
+                    clr[m.color_]++;
+                else
+                    score += m.score();
+            }
+        }
+    }
+
+    for (int i = 1; i < NC; i++)
+        score -= clr[i];
+
+    return score;
 }
 
-QByteArray Board::stateSign(int c[N][N])
+long Board::hash()
 {
-    QByteArray result(N*N,0);
-    int k = 0;
-    for (int i = 0;i < N;i++)
-        for (int j = 0;j < N;j++)
-            result[k++]=c[i][j];
+    long result = 0;
+    for (int i = 0; i < N; i++)
+        for (int j = 0; j < N; j++)
+            result ^= g_zobristMetrix->d_[i][j][d_[i][j]];
 
     return result;
+}
+
+int Board::step(Move &move)
+{
+    fall(d_,move);
+
+    return move.score();
+}
+
+int Board::upperScore()
+{
+    int restScore = 0;
+    int rest[NC] = {};
+    for (int i = 0;i < N;i++)
+        for (int j = 0;j < N;j++)
+            if (d_[i][j] != 0)
+                rest[d_[i][j] - 1]++;
+
+    bool bonus = true;
+    for (int i = 0;i < NC;i++)
+    {
+        if (rest[i] == 1)
+            bonus = false;
+        else
+            restScore += Move::score(rest[i]);
+    }
+
+    if (bonus)
+        restScore += BONUS;
+
+    return restScore;
 }

@@ -15,11 +15,21 @@ CONFIG += c++11
 
 SOURCES += main.cpp\
         widget.cpp \
-    board.cpp \
-    boardwidget.cpp
+    boardwidget.cpp \
+    solution.cpp \
+    move.cpp \
+    mctsnode.cpp \
+    mcts.cpp \
+    gameboard.cpp \
+    board.cpp
 
 HEADERS  += widget.h \
-    board.h \
-    boardwidget.h
+    boardwidget.h \
+    solution.h \
+    move.h \
+    gameboard.h \
+    mcts.h \
+    mctsnode.h \
+    board.h
 
 FORMS    += widget.ui

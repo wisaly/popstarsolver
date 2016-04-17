@@ -1,6 +1,6 @@
 #include "widget.h"
 #include <QApplication>
-#include "board.h"
+#include "gameboard.h"
 
 int main(int argc, char *argv[])
 {

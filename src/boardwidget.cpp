@@ -19,8 +19,8 @@ void BoardWidget::paintEvent(QPaintEvent *event)
 
     QPainter painter(this);
 
-    unitWidth_ = width() / Board::N;
-    unitHeight_ = height() / Board::N;
+    unitWidth_ = width() / GameBoard::N;
+    unitHeight_ = height() / GameBoard::N;
 
     for (int x = 0;x < width();x += unitWidth_)
         painter.drawLine(x,0,x,height());
@@ -28,15 +28,15 @@ void BoardWidget::paintEvent(QPaintEvent *event)
         painter.drawLine(0,y,width(),y);
 
     painter.setFont(QFont("Consolas",15));
-    for (int i = 0;i < Board::N;i++)
+    for (int i = 0;i < GameBoard::N;i++)
     {
-        for (int j = 0;j < Board::N;j++)
+        for (int j = 0;j < GameBoard::N;j++)
         {
             QRect rc(i*unitWidth_,j*unitHeight_,
                      unitWidth_,unitHeight_);
 
             int n = board_->at(j,i);
-            painter.fillRect(rc,Board::color(n));
+            painter.fillRect(rc,GameBoard::color(n));
             painter.drawText(rc,
                              Qt::AlignCenter,
                              QString::number(n));
