@@ -39,6 +39,8 @@ public:
     void deactivateChild(MCTSNode *kid);
     // make this node the owner of child reached using the given cumulative score (cum includes score[i])
     void activateChild(MCTSNode *kid, int cum);
+    // change parent
+    void transfer(MCTSNode *newParent);
     // return whether there are unsolved child nodes of this node
     bool isAlive();
     // record that a terminal node is present in all ancestors of the given terminal node, and increases their c value
