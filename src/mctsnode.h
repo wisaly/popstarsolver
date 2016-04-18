@@ -9,14 +9,12 @@
 class MCTSNode
 {
 public:
-    MCTSNode();
-    ~MCTSNode();
 
     MCTSNode *parent_ = nullptr;        // parent node
     QVector<MCTSNode*> children_;       // child nodes
 
     Board *board_;                      // the board
-    QList<Move> moves_;                 // available moves (with score)
+    QList<Move> moves_;                 // available moves (with score), save solution when complete solved
     int cum_ = 0;                       // best cumulative score leading to this state (include moveScore)
     int topScore_ = -1;                 // best score from this node
     int moveScore_ = 0;                 // score perform to this node
@@ -25,10 +23,14 @@ public:
     int cnt_ = 0;                       // number of active child nodes
     int alive_ = 0;                     // number of unsolved child nodes
     bool hasLeafHit_ = false;           // is there a terminal node in this subtree
-    double avg_ = .0f;                  // average score
     double c_ = 0.0;                    // explorative factor
-    bool complete_ = false;             // is node complete solved
 
+private:
+    bool complete_ = false;             // is node complete solved
+    double avg_ = .0f;                  // average score
+public:
+    MCTSNode();
+    ~MCTSNode();
     MCTSNode(Board *board, MCTSNode *parent = nullptr, int cum = 0, int moveScore = 0);
 
     // records an iteration yielding the given score in this node
@@ -41,13 +43,15 @@ public:
     bool isAlive();
     // record that a terminal node is present in all ancestors of the given terminal node, and increases their c value
     void leafHit();
-    // subtract the statistics of node kid from this node and all its ancestors
-    void subtract(MCTSNode *kid);
-    // add the statistics of node kid to this node and all its ancestors
-    void add(MCTSNode *kid);
     // is own child at index
     bool isOwn(int index);
-    Solution solution();
+    // mark complete and save solution
+    void complete();
+    // free children resources
+    void freeChildren();
+    // attributes accessor
+    bool isComplete() { return complete_; }
+    double avg() { return avg_; }
 };
 
 #endif // MCTSNode_H

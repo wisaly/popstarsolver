@@ -9,9 +9,7 @@ MCTSNode::~MCTSNode()
 {
     delete board_;
 
-    for (int i = 0; i < children_.count(); i++)
-        if (children_[i] && isOwn(i))
-            delete children_[i];
+    freeChildren();
 }
 
 MCTSNode::MCTSNode(Board *board, MCTSNode *parent, int cum, int moveScore)
@@ -21,7 +19,7 @@ MCTSNode::MCTSNode(Board *board, MCTSNode *parent, int cum, int moveScore)
     //complete_ = moves_.isEmpty();
 
     upperScore_ = board->upperScore();
-    alive_ = cnt_ = moves_.count() / 2;
+    alive_ = cnt_ = moves_.count();
     children_.resize(cnt_);
 
     parent_ = parent;
@@ -42,7 +40,19 @@ void MCTSNode::deactivateChild(MCTSNode *kid)
 {
     if (kid->parent_ == this)
     {
-        subtract(kid);
+        if (!kid->isComplete())
+        {
+            // subtract the statistics of node kid from this node and all its ancestors
+            int t = kid->t_;
+            double sub = kid->avg_;
+            for (MCTSNode *p = this; p; kid = p, p = p->parent_)
+            {
+                sub += p->moveScore_;
+                p->avg_ = (p->avg_ * p->t_ - sub * t_) / (p->t_ - t);
+                p->t_ -= t;
+            }
+        }
+
         if (--cnt_ == 0 && parent_ != 0)
             parent_->deactivateChild(this);
     }
@@ -56,7 +66,19 @@ void MCTSNode::activateChild(MCTSNode *kid, int cum)
         kid->parent_->deactivateChild(kid);
         kid->parent_ = this;
         cnt_++;
-        add(kid);
+
+        if (!kid->isComplete())
+        {
+            // add the statistics of node kid to this node and all its ancestors
+            int t = kid->t_;
+            double ad = kid->avg_;
+            for (MCTSNode *p = this; p; kid = p, p = p->parent_)
+            {
+                ad += p->moveScore_;
+                p->avg_ = (p->avg_ * p->t_ + ad * t_) / (p->t_ + t);
+                p->t_ += t;
+            }
+        }
     }
 }
 
@@ -79,44 +101,14 @@ void MCTSNode::leafHit()
     }
 }
 
-void MCTSNode::subtract(MCTSNode *kid)
-{
-    int t = kid->t_;
-    if (t < 0)
-        return;
-
-    double sub = kid->avg_;
-    for (MCTSNode *p = this; p; kid = p, p = p->parent_)
-    {
-        sub += p->moveScore_;
-        p->avg_ = (p->avg_ * p->t_ - sub * t_) / (p->t_ - t);
-        p->t_ -= t;
-    }
-}
-
-void MCTSNode::add(MCTSNode *kid)
-{
-    int t = kid->t_;
-    if (t < 0)
-        return;
-
-    double ad = kid->avg_;
-    for (MCTSNode *p = this; p; kid = p, p = p->parent_)
-    {
-        ad += p->moveScore_;
-        p->avg_ = (p->avg_ * p->t_ + ad * t_) / (p->t_ + t);
-        p->t_ += t;
-    }
-}
-
 bool MCTSNode::isOwn(int index)
 {
     return children_[index]->parent_ == this;
 }
 
-Solution MCTSNode::solution()
+void MCTSNode::complete()
 {
-    Solution result;
+    moves_.clear();
     MCTSNode *p = this;
     for (;;)
     {
@@ -134,10 +126,21 @@ Solution MCTSNode::solution()
         if (bi == -1)
             break;
 
-        result.moves_.append(p->moves_[bi]);
-        result.score_ += p->children_[bi]->moveScore_;
+        moves_.append(p->moves_[bi]);
     }
 
-    return result;
+    freeChildren();
+}
+
+void MCTSNode::freeChildren()
+{
+    for (int i = 0; i < children_.count(); i++)
+    {
+        if (children_[i] && isOwn(i))
+        {
+            delete children_[i];
+            children_[i] = nullptr;
+        }
+    }
 }
 

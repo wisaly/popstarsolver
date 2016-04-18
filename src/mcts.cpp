@@ -51,7 +51,7 @@ void MCTS::solve(Board *board, int simLim)
 
 bool MCTS::iterate(MCTSNode *root, int depth)
 {
-    if (root->complete_)
+    if (root->isComplete())
     {
         inspectLim_ = -1;
         return false;
@@ -65,7 +65,7 @@ bool MCTS::iterate(MCTSNode *root, int depth)
     {
         root->leafHit();
         root->parent_->deactivateChild(root);
-        root->complete_ = true;
+        root->complete();
         inspectLim_--;
         solved_ = true;
         earlyTerminal_ |= inspectLim_ > startLim_ * urgencyLimit_;
@@ -101,7 +101,7 @@ bool MCTS::iterate(MCTSNode *root, int depth)
 
             // null-preference has higher priority than finalized choice
             if ((nullCnt == 0) &&
-                (root->isOwn(i) && !children[i]->complete_) &&
+                (root->isOwn(i) && !children[i]->isComplete()) &&
                 (bi == -1 || children[i]->topScore_ > children[bi]->topScore_))
                 bi = i;
         }
@@ -127,13 +127,13 @@ bool MCTS::iterate(MCTSNode *root, int depth)
                 if (randTest(++nullCnt))
                     bi = i;
             }
-            else if (root->isOwn(i) && !children[i]->complete_)
+            else if (root->isOwn(i) && !children[i]->isComplete())
             {
                 if (nullCnt == 0)
                     continue;
 
                 // ordinary case
-                double tbuct = cum + children[i]->avg_ + root->c_ * std::sqrt(lnt / children[i]->t_);
+                double tbuct = cum + children[i]->avg() + root->c_ * std::sqrt(lnt / children[i]->t_);
 
                 if (tbuct > buct)
                 {
@@ -144,7 +144,7 @@ bool MCTS::iterate(MCTSNode *root, int depth)
             else if (!root->isOwn(i) && cum > children[i]->cum_)
             {
                 // reconquering
-                if (children[i]->complete_)
+                if (children[i]->isComplete())
                 {
                     // solved children should not be owned
                     children[i]->cum_ = cum;
@@ -163,7 +163,7 @@ bool MCTS::iterate(MCTSNode *root, int depth)
 
                 root->activateChild(children[i], cum);
 
-                int tbuct = cum + children[i]->avg_ + root->c_ * std::sqrt(lnt / children[i]->t_);
+                int tbuct = cum + children[i]->avg() + root->c_ * std::sqrt(lnt / children[i]->t_);
                 if (tbuct > buct)
                 {
                     bi = i;
@@ -179,7 +179,7 @@ bool MCTS::iterate(MCTSNode *root, int depth)
             {
                 root->leafHit();
                 root->alive_ = 0;
-                root->complete_ = true;
+                root->complete();
             }
 
             return false;
@@ -189,7 +189,11 @@ bool MCTS::iterate(MCTSNode *root, int depth)
     MCTSNode *nxt = children[bi] ? children[bi] : expandChild(root, bi);
 
     if (!nxt)
+    {
+        if (root->cnt_ == 0 && root->parent_)
+            root->parent_->deactivateChild(root);
         return false;
+    }
 
     if (nxt->t_ == 0)
     {
@@ -203,18 +207,18 @@ bool MCTS::iterate(MCTSNode *root, int depth)
             return false;
     }
 
-    if (children[bi]->complete_)
+    if (children[bi]->isComplete())
     {
         // child was solved (Note: children[bi] == nxt is not necessarily true)
         // that child could have been found by somebody else and solved
         // either it already was then we should account for the leaf hit
-        if (nxt->complete_)
+        if (nxt->isComplete())
             root->leafHit();
 
         if (--root->alive_ == 0)
         {
             root->parent_->deactivateChild(root);
-            root->complete_ = true;
+            root->complete();
         }
     }
     // return length of solution
@@ -289,8 +293,6 @@ MCTSNode *MCTS::expandChild(MCTSNode *root, int index)
         root->children_[index] = child;
         if (cum <= child->cum_)
         {
-            if (root->cnt_ == 0 && root->parent_)
-                root->parent_->deactivateChild(root);
             return nullptr;
         }
         else
