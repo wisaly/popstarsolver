@@ -64,7 +64,7 @@ bool MCTS::iterate(MCTSNode *root, int depth)
     if (children.count() == 0)
     {
         root->leafHit();
-        root->parent_->deactivateChild(root);
+        root->deactivate();
         root->complete();
         inspectLim_--;
         solved_ = true;
@@ -97,7 +97,7 @@ bool MCTS::iterate(MCTSNode *root, int depth)
             }
 
             if (!root->isOwn(i) && root->cum_ + moves[i].score() >= children[i]->cum_)
-                root->activateChild(children[i], root->cum_ + moves[i].score());
+                children[i]->transfer(root);//root->activateChild(children[i], root->cum_ + moves[i].score());
 
             // null-preference has higher priority than finalized choice
             if ((nullCnt == 0) &&
@@ -161,7 +161,8 @@ bool MCTS::iterate(MCTSNode *root, int depth)
                 if (nullCnt == 0)
                     continue;
 
-                root->activateChild(children[i], cum);
+                //root->activateChild(children[i], cum);
+                children[i]->transfer(root);
 
                 int tbuct = cum + children[i]->avg() + root->c_ * std::sqrt(lnt / children[i]->t_);
                 if (tbuct > buct)
@@ -174,7 +175,7 @@ bool MCTS::iterate(MCTSNode *root, int depth)
         if (bi == -1)
         {
             // there was no suitable child
-            root->parent_->deactivateChild(root);
+            root->deactivate();
             if (!root->isAlive())
             {
                 root->leafHit();
@@ -191,7 +192,7 @@ bool MCTS::iterate(MCTSNode *root, int depth)
     if (!nxt)
     {
         if (root->cnt_ == 0 && root->parent_)
-            root->parent_->deactivateChild(root);
+            root->deactivate();
         return false;
     }
 
@@ -217,7 +218,7 @@ bool MCTS::iterate(MCTSNode *root, int depth)
 
         if (--root->alive_ == 0)
         {
-            root->parent_->deactivateChild(root);
+            root->deactivate();
             root->complete();
         }
     }
@@ -297,7 +298,9 @@ MCTSNode *MCTS::expandChild(MCTSNode *root, int index)
         }
         else
         {
-            root->activateChild(child, cum);
+            //root->activateChild(child, cum);
+            child->ref_++;
+            child->transfer(root);
             return child;
         }
     }

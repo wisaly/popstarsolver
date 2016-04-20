@@ -15,12 +15,19 @@ public:
     };
 
     QList<Node> cell_;          // cell in same color
-    int color_ = 0;
-    bool isVS_ = false;
+    int color_ = 0;             // move color
+    bool isVS_ = false;         // is vertical segment
 
-    int score() const;          // move score
+    // move score
+    int score() const;
+    // size of cell
     inline int size() const { return cell_.size(); }
+    // is pos in cell
+    bool isIn(int x, int y);
+    // reset move
+    void clear();
 
+    // get score in s block
     static int score(int s);
 };
 

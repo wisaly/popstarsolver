@@ -30,3 +30,19 @@ int Move::score(int s)
 {
     return g_scoreCache->score(s);
 }
+
+bool Move::isIn(int x, int y)
+{
+    for (const Node &node : cell_)
+        if (node.x_ == x && node.y_ == y)
+            return true;
+
+    return false;
+}
+
+void Move::clear()
+{
+    cell_.clear();
+    color_ = 0;
+    isVS_ = false;
+}

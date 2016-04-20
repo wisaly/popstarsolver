@@ -20,7 +20,7 @@ Q_GLOBAL_STATIC(ZobristMetrix, g_zobristMetrix)
 
 Board::Board()
 {
-
+    std::memset(d_, 0, sizeof(int)* N * N);
 }
 
 Board::Board(const Board &o)
@@ -33,6 +33,9 @@ void Board::mark(int c[N][N], int x, int y, Move &move)
     move.cell_.clear();
     move.color_ = c[y][x];
     move.isVS_ = true;
+
+    if (move.color_ == 0)
+        return;
 
     QQueue<Move::Node> q; // search quque
     q.enqueue(Move::Node(x,y));
@@ -239,4 +242,24 @@ int Board::upperScore()
         restScore += BONUS;
 
     return restScore;
+}
+
+void Board::rand()
+{
+    for (int i = 0; i < N; i++)
+        for (int j = 0; j < N; j++)
+            d_[i][j] = qrand() % NC + 1;
+}
+
+Move Board::moveAt(int x, int y)
+{
+    Move result;
+    int t[N][N];
+    copy(t, d_);
+    mark(t, x, y, result);
+
+    if (result.size() == 1)
+        result.clear();
+
+    return result;
 }

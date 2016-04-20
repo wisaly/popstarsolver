@@ -24,6 +24,7 @@ public:
     int alive_ = 0;                     // number of unsolved child nodes
     bool hasLeafHit_ = false;           // is there a terminal node in this subtree
     double c_ = 0.0;                    // explorative factor
+    int ref_ = 1;                       // reference count
 
 private:
     bool complete_ = false;             // is node complete solved
@@ -36,9 +37,7 @@ public:
     // records an iteration yielding the given score in this node
     void update(int sample);
     // revokes this node's ownership of the given child node
-    void deactivateChild(MCTSNode *kid);
-    // make this node the owner of child reached using the given cumulative score (cum includes score[i])
-    void activateChild(MCTSNode *kid, int cum);
+    void deactivate();
     // change parent
     void transfer(MCTSNode *newParent);
     // return whether there are unsolved child nodes of this node

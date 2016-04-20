@@ -1,9 +1,8 @@
 #ifndef WIDGET_H
 #define WIDGET_H
 
-#include "gameboard.h"
-
 #include <QWidget>
+#include "board.h"
 
 namespace Ui {
 class Widget;
@@ -21,10 +20,13 @@ public slots:
     void on_btnRand_clicked();
     void on_btnSolve_clicked();
     void on_btnStep_clicked();
+    void on_board_currentChanged(int score);
+    void on_board_scoreChanged(int score, int steps);
+    void on_board_gameOver();
 
 private:
     Ui::Widget *ui;
-    GameBoard board_;
+    Board board_;
     int step_;
 };
 

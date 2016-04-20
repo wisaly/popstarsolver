@@ -63,3 +63,10 @@ $RECYCLE.BIN/
 *.msi
 *.msm
 *.msp
+
+# VS
+Win32
+Debug
+*.sdf
+*.user
+*.suo
