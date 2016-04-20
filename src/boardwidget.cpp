@@ -86,7 +86,10 @@ void BoardWidget::mousePressEvent(QMouseEvent *event)
         emit scoreChanged(total_, steps_);
 
         if (board_->moves().count() == 0)
+        {
+            total_ += board_->endScore();
             emit gameOver();
+        }
     }
     else
     {

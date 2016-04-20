@@ -93,47 +93,76 @@ void Board::fall(int d[N][N], Move &move)
     {
         for (int y = N - 1; y > 0;y--)
         {
+            // fast skip empty from bottom
+            if (d[y][x] != 0)
+                continue;
+
             int e = 0; // empty count
             for (int yy = y; yy >= 0 && d[yy][x] == 0; yy--)
                 e++;
 
-            if (e > 0 && y >= e)
-            {
-                // move down
-                for (int yy = y; yy >= e; yy--)
-                    d[yy][x] = d[yy - e][x];
-                // fill empty
-                for (int yy = e - 1; yy >= 0; yy--)
-                    d[yy][x] = 0;
+            // reach top border
+            if (y < e)
+                break;
 
-                y -= e - 1;
-            }
+            // move down
+            for (int yy = y; yy >= e; yy--)
+                d[yy][x] = d[yy - e][x];
+            // fill empty
+            for (int yy = e - 1; yy >= 0; yy--)
+                d[yy][x] = 0;
         }
     }
     // fall left
     for (int x = xfrom; x <= xto; x++)
     {
+        // fast skip
+        if (d[N - 1][x] != 0)
+            continue;
+
         int e = 0;
         for (int xx = x; xx <= xto && d[N - 1][xx] == 0; xx++)
             e++;
-        if (e > 0 && (x + e) < N)
-        {
-            // move left
-            for (int xx = x; xx < N - e; xx++)
-                for (int y = 0; y < N; y++)
-                    d[y][xx] = d[y][xx + e];
-            // fill empty
-            for (int xx = N - e; xx < N; xx++)
-                for (int y = 0; y < N; y++)
-                    d[y][xx] = 0;
-            x += e - 1;
-        }
+
+        // reach right border
+        if (x + e >= N)
+            break;
+
+        // move left
+        for (int xx = x; xx < N - e; xx++)
+            for (int y = 0; y < N; y++)
+                d[y][xx] = d[y][xx + e];
+        // fill empty
+        for (int xx = N - e; xx < N; xx++)
+            for (int y = 0; y < N; y++)
+                d[y][xx] = 0;
     }
 }
 
 QList<Move> Board::moves()
 {
-    return tabuMoves(0);
+    QList<Move> result;
+    int t[N][N];
+    copy(t,d_);
+
+    Move m;
+    for (int y = N - 1;y >= 0;y--)
+    {
+        for (int x = 0;x < N;x++)
+        {
+            if (t[y][x] == 0)
+                continue;
+
+            mark(t, x, y, m);
+
+            if (m.size() < 2)
+                continue;
+
+            result.append(m);
+        }
+    }
+
+    return result;
 }
 
 QList<Move> Board::tabuMoves(int tabu)
@@ -157,8 +186,8 @@ QList<Move> Board::tabuMoves(int tabu)
 
             // perform VS-pruning
             if (m.isVS_ &&
-                (y == N - 1 || t[y + 1][x] == 0) &&
-                (y > 0 || x == 0))
+                (y == 0 || t[y - 1][x] == 0) &&
+                (y < N - 1 || x == 0))
                 continue;
 
             result.append(m);
@@ -173,12 +202,12 @@ QList<Move> Board::tabuMoves(int tabu)
 
 int Board::endScore()
 {
-    int score = BONUS;
     if (isEmpty())
-        return score;
+        return Move::endScore(0);
 
-    int clr[NC + 1]={};
+    int score = 0;
     int t[N][N];
+    int rest = 0;
     copy(t, d_);
 
     for (int i = 0; i < N; i++)
@@ -190,15 +219,14 @@ int Board::endScore()
                 Move m;
                 mark(t, j, i, m);
                 if (m.size() == 1)
-                    clr[m.color_]++;
+                    rest++;
                 else
                     score += m.score();
             }
         }
     }
 
-    for (int i = 1; i < NC; i++)
-        score -= clr[i] * clr[i] * 20;
+    score += Move::endScore(rest);
 
     return score;
 }
@@ -229,17 +257,16 @@ int Board::upperScore()
             if (d_[i][j] != 0)
                 rest[d_[i][j] - 1]++;
 
-    bool bonus = true;
+    int singleCount = 0;
     for (int i = 0;i < NC;i++)
     {
         if (rest[i] == 1)
-            bonus = false;
+            singleCount++;
         else
             restScore += Move::score(rest[i]);
     }
 
-    if (bonus)
-        restScore += BONUS;
+    restScore += Move::endScore(singleCount);
 
     return restScore;
 }

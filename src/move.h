@@ -28,7 +28,8 @@ public:
     void clear();
 
     // get score in s block
-    static int score(int s);
+    static int score(int n);
+    static int endScore(int n);
 };
 
 #endif // MOVE_H
