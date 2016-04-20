@@ -173,10 +173,10 @@ QList<Move> Board::tabuMoves(int tabu)
 
 int Board::endScore()
 {
+    int score = BONUS;
     if (isEmpty())
-        return BONUS;
+        return score;
 
-    int score = 0;
     int clr[NC + 1]={};
     int t[N][N];
     copy(t, d_);
@@ -198,7 +198,7 @@ int Board::endScore()
     }
 
     for (int i = 1; i < NC; i++)
-        score -= clr[i];
+        score -= clr[i] * clr[i] * 20;
 
     return score;
 }
