@@ -19,11 +19,11 @@ public:
     int topScore_ = -1;                 // best score from this node
     int moveScore_ = 0;                 // score perform to this node
     int upperScore_ = 0;                // an upper bound on the maximum possible score achievable
-    int t_ = -1;                        // number of visits
+    int t_ = 0;                         // number of visits
     int cnt_ = 0;                       // number of active child nodes
     int alive_ = 0;                     // number of unsolved child nodes
     bool hasLeafHit_ = false;           // is there a terminal node in this subtree
-    double c_ = 0.0;                    // explorative factor
+    double c_ = 0.021 * 5000.0;         // explorative factor
     int ref_ = 1;                       // reference count
 
 private:

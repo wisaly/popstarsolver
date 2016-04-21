@@ -1,4 +1,5 @@
 #include "mcts.h"
+#include <QDebug>
 #include <cmath>
 #include <limits>
 #include <algorithm>
@@ -10,10 +11,8 @@ MCTS::MCTS()
 
 void MCTS::solve(Board *board, int simLim)
 {
-    best_[0] = -255 * 255 - 1;
     map_.clear();
     breakDepth_ = 0;
-    earlyTerminal_ = false;
 
     startLim_ = inspectLim_ = simLim;
 
@@ -33,7 +32,6 @@ void MCTS::solve(Board *board, int simLim)
     while (inspectLim_ > 0)
     {
         int beginInspectLim = inspectLim_;
-        bonus_ = solved_ = false;
 
         iterate(root, 1);
 
@@ -46,7 +44,11 @@ void MCTS::solve(Board *board, int simLim)
             breakDepth_++;
             frameLim = breakDepth_ >= S ? inspectLim_ : resourceFrame[breakDepth_];
         }
+
+        qDebug() << "inspect lim:" << inspectLim_ << " break depth:" << breakDepth_;
     }
+
+    qDebug() << "top score: " << root->topScore_;
 }
 
 bool MCTS::iterate(MCTSNode *root, int depth)
@@ -58,17 +60,16 @@ bool MCTS::iterate(MCTSNode *root, int depth)
     }
 
     // alias
-    auto &children = root->children_;
-    auto &moves = root->moves_;
+    QVector<MCTSNode*> &children = root->children_;
+    QList<Move> &moves = root->moves_;
 
     if (children.count() == 0)
     {
+        qDebug() << "leaf hit @depth:" << depth;
         root->leafHit();
         root->deactivate();
         root->complete();
         inspectLim_--;
-        solved_ = true;
-        earlyTerminal_ |= inspectLim_ > startLim_ * urgencyLimit_;
         return false;
     }
 
@@ -85,107 +86,93 @@ bool MCTS::iterate(MCTSNode *root, int depth)
     // number of encountered null-children
     int nullCnt = 0;
 
-    if (depth <= breakDepth_)
+    // find null reference and reconquering child
+    for (int i = 0; i < children.count(); i++)
     {
-        for (int i = 0; i < children.count(); i++)
+        if (!children[i])
         {
-            if (!children[i])
-            {
-                if (randTest(++nullCnt))
-                    bi = i;
-                continue;
-            }
-
-            if (!root->isOwn(i) && root->cum_ + moves[i].score() >= children[i]->cum_)
-                children[i]->transfer(root);//root->activateChild(children[i], root->cum_ + moves[i].score());
-
-            // null-preference has higher priority than finalized choice
-            if ((nullCnt == 0) &&
-                (root->isOwn(i) && !children[i]->isComplete()) &&
-                (bi == -1 || children[i]->topScore_ > children[bi]->topScore_))
+            if (randTest(++nullCnt))
                 bi = i;
         }
-        // if extremely few resources are allocated for same levels this could happen
-        if (bi == -1)
+        else
         {
-            breakDepth_--;
-            return false;
-        }
-    }
-    else
-    {
-        // choose next child base on UCB
-        double lnt = std::log(root->t_);
-        double buct = std::numeric_limits<double>::min();
-
-        for (int i = 0; i < children.count(); i++)
-        {
-            int cum = root->cum_ + moves[i].score();
-            if (!children[i])
+            if (!root->isOwn(i) && root->cum_ + moves[i].score() > children[i]->cum_)
             {
-                // null-preference
-                if (randTest(++nullCnt))
-                    bi = i;
-            }
-            else if (root->isOwn(i) && !children[i]->isComplete())
-            {
-                if (nullCnt == 0)
-                    continue;
-
-                // ordinary case
-                double tbuct = cum + children[i]->avg() + root->c_ * std::sqrt(lnt / children[i]->t_);
-
-                if (tbuct > buct)
-                {
-                    bi = i;
-                    buct = tbuct;
-                }
-            }
-            else if (!root->isOwn(i) && cum > children[i]->cum_)
-            {
-                // reconquering
                 if (children[i]->isComplete())
                 {
                     // solved children should not be owned
-                    children[i]->cum_ = cum;
+                    children[i]->cum_ = root->cum_ + moves[i].score();
                     if (children[i]->cum_ + children[i]->topScore_ > topScore_)
                     {
                         // yippie, new highscore
-                        //#j = solvedPlayout(children[i], depth + 1);
                         topScore_ = children[i]->cum_ + children[i]->topScore_;
+                        qDebug() << "top score:" << topScore_;
                         return true;
                     }
-                    continue;
                 }
-
-                if (nullCnt == 0)
-                    continue;
-
-                //root->activateChild(children[i], cum);
-                children[i]->transfer(root);
-
-                int tbuct = cum + children[i]->avg() + root->c_ * std::sqrt(lnt / children[i]->t_);
-                if (tbuct > buct)
+                else
                 {
-                    bi = i;
-                    buct = tbuct;
+                    children[i]->transfer(root);
                 }
             }
-        }
-        if (bi == -1)
-        {
-            // there was no suitable child
-            root->deactivate();
-            if (!root->isAlive())
-            {
-                root->leafHit();
-                root->alive_ = 0;
-                root->complete();
-            }
-
-            return false;
         }
     }
+
+    if (nullCnt == 0)
+    {
+        if (depth <= breakDepth_)
+        {
+            for (int i = 0; i < children.count(); i++)
+            {
+                // null-preference has higher priority than finalized choice
+                if ((root->isOwn(i) && !children[i]->isComplete()) &&
+                    (bi == -1 || children[i]->topScore_ > children[bi]->topScore_))
+                    bi = i;
+            }
+            // if extremely few resources are allocated for same levels this could happen
+            if (bi == -1)
+            {
+                breakDepth_--;
+                return false;
+            }
+        }
+        else
+        {
+            // choose next child base on UCB
+            double lnt = std::log(root->t_);
+            double buct = std::numeric_limits<double>::min();
+
+            for (int i = 0; i < children.count(); i++)
+            {
+                int cum = root->cum_ + moves[i].score();
+                if (root->isOwn(i) && !children[i]->isComplete())
+                {
+                    // ordinary case
+                    double tbuct = cum + children[i]->avg() + root->c_ * std::sqrt(lnt / children[i]->t_);
+
+                    if (tbuct > buct)
+                    {
+                        bi = i;
+                        buct = tbuct;
+                    }
+                }
+            }
+            if (bi == -1)
+            {
+                // there was no suitable child
+                root->deactivate();
+                if (!root->isAlive())
+                {
+                    root->leafHit();
+                    root->alive_ = 0;
+                    root->complete();
+                }
+
+                return false;
+            }
+        }
+    }
+
     // get the next node to traverse down, it could be an unexpanded child
     MCTSNode *nxt = children[bi] ? children[bi] : expandChild(root, bi);
 
@@ -198,9 +185,9 @@ bool MCTS::iterate(MCTSNode *root, int depth)
 
     if (nxt->t_ == 0)
     {
-        if (!playout(nxt, depth + 1))
+        if (!playout(nxt))
             return false;
-        //root->update();
+        root->update(nxt->moveScore_);
     }
     else //if (nxt->t_ > 0)
     {
@@ -222,15 +209,14 @@ bool MCTS::iterate(MCTSNode *root, int depth)
             root->complete();
         }
     }
-    // return length of solution
     return true;
 }
 
-int MCTS::playout(MCTSNode *leaf, int depth)
+bool MCTS::playout(MCTSNode *leaf)
 {
     // using the TabuColorRandom default policy
-    if (leaf->t_ < 0)
-        return -1;
+    if (leaf->isComplete())
+        return false;
 
     // account for inspection of state
     inspectLim_--;
@@ -261,7 +247,7 @@ int MCTS::playout(MCTSNode *leaf, int depth)
     int blocks = Board::N * Board::N * c[0];
 
     int score = 0;
-    for (int i = depth; ; inspectLim_--)
+    for (;;)
     {
         // only use the simulation strategy if there's a significant number of blocks
         QList<Move> mvs = blocks > 48 ? board.tabuMoves(tabu) : board.moves();
@@ -270,9 +256,9 @@ int MCTS::playout(MCTSNode *leaf, int depth)
         if (mvs.count() == 0)
         {
             score += board.endScore();
-            bonus_ = board.isEmpty();
             leaf->update(score);
-            return i;
+
+            return true;
         }
 
         // choose random move
@@ -280,6 +266,7 @@ int MCTS::playout(MCTSNode *leaf, int depth)
         // perform move
         score = board.step(mvs[mv]);
         blocks -= mvs[mv].size();
+        inspectLim_--;
     }
 }
 
@@ -287,9 +274,11 @@ MCTSNode *MCTS::expandChild(MCTSNode *root, int index)
 {
     int cum = root->cum_ + root->moves_[index].score();
     Board *board = new Board(*root->board_);
+    board->step(root->moves_[index]);
     long hashKey = board->hash();
     if (map_.contains(hashKey))
     {
+        qDebug() << "cache hit :" << hashKey;
         MCTSNode *child = map_[hashKey];
         root->children_[index] = child;
         if (cum <= child->cum_)
@@ -298,7 +287,6 @@ MCTSNode *MCTS::expandChild(MCTSNode *root, int index)
         }
         else
         {
-            //root->activateChild(child, cum);
             child->ref_++;
             child->transfer(root);
             return child;

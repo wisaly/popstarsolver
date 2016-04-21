@@ -25,6 +25,8 @@ MCTSNode::MCTSNode(Board *board, MCTSNode *parent, int cum, int moveScore)
     parent_ = parent;
     cum_ = cum;
     moveScore_ = moveScore;
+
+    //c_ = defaultC*1.00 + rnd.nextDouble()*defaultC*0.00;
 }
 
 void MCTSNode::update(int sample)
@@ -43,11 +45,11 @@ void MCTSNode::deactivate()
         // subtract the statistics of node kid from this node and all its ancestors
         int t = t_;
         double sub = avg_;
-        for (MCTSNode *p = this; p; p = p->parent_)
+        for (MCTSNode *p = this; p->parent_; p = p->parent_)
         {
             sub += p->moveScore_;
-            p->avg_ = (p->avg_ * p->t_ - sub * t) / (p->t_ - t);
-            p->t_ -= t;
+            p->parent_->avg_ = (p->parent_->avg_ * p->parent_->t_ - sub * t) / (p->parent_->t_ - t);
+            p->parent_->t_ -= t;
         }
     }
 
@@ -57,6 +59,8 @@ void MCTSNode::deactivate()
 
 void MCTSNode::transfer(MCTSNode *newParent)
 {
+    if (newParent->parent_ == this)
+        Q_ASSERT(newParent->parent_ != this);
     cum_ = newParent->cum_ + moveScore_;
     deactivate();
     parent_ = newParent;
@@ -67,11 +71,11 @@ void MCTSNode::transfer(MCTSNode *newParent)
         // add the statistics of node kid to this node and all its ancestors
         int t = t_;
         double ad = avg_;
-        for (MCTSNode *p = this; p; p = p->parent_)
+        for (MCTSNode *p = this; p->parent_; p = p->parent_)
         {
             ad += p->moveScore_;
-            p->avg_ = (p->avg_ * p->t_ + ad * t_) / (p->t_ + t);
-            p->t_ += t;
+            p->parent_->avg_ = (p->parent_->avg_ * p->parent_->t_ + ad * t_) / (p->parent_->t_ + t);
+            p->parent_->t_ += t;
         }
     }
 }

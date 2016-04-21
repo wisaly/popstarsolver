@@ -11,9 +11,14 @@ public:
         for (int i = 0; i < Board::N; i++)
             for (int j = 0; j < Board::N; j++)
                 for (int c = 0; c < Board::NC + 1; c++)
-                    d_[i][j][c] = qrand();
+                    d_[i][j][c] = rand();
     }
     long d_[Board::N][Board::N][Board::NC + 1];
+    inline long rand()
+    {
+        // RAND_MAX 0x7fff
+        return qrand() | (qrand() << 11) | ((qrand() & 0x3ff) << 22);
+    }
 };
 
 Q_GLOBAL_STATIC(ZobristMetrix, g_zobristMetrix)

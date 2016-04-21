@@ -3,6 +3,7 @@
 
 #include <QWidget>
 #include "board.h"
+#include "mcts.h"
 
 namespace Ui {
 class Widget;
@@ -28,6 +29,7 @@ private:
     Ui::Widget *ui;
     Board board_;
     int step_;
+    MCTS mcts_;
 };
 
 #endif // WIDGET_H
