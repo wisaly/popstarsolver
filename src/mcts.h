@@ -23,8 +23,8 @@ private:
     bool iterate(MCTSNode *root, int depth);
     // generate a float random number between 0 and 1
     //inline static double rand() { return static_cast<double>(qrand()) / RAND_MAX; }
-    // test a random number in [0,2^exponent) and test if result is 0
-    inline static bool randTest(int exponent) { return exponent == 1 ? true : (qrand() % (1 << (exponent - 1)) == 0); }
+    // test a random number with decreasing chance
+    inline static bool randTest(int exponent) { return exponent == 1 ? true : qrand() % exponent == 0; }
     // run a simulation from the node leaf at given depth, the length of the solution is returned
     bool playout(MCTSNode *leaf);
     // return child of node root that is reached by applying move at moveIndex
