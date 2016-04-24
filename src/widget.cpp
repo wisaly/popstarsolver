@@ -26,7 +26,7 @@ void Widget::on_btnRand_clicked()
 
 void Widget::on_btnSolve_clicked()
 {
-    mcts_.solve(&board_,10*64*10);
+    mcts_.solve(&board_,10*64*1000);
 }
 
 void Widget::on_btnStep_clicked()

@@ -47,13 +47,14 @@ void MCTSNode::deactivate()
         double sub = avg_;
         for (MCTSNode *p = this; p->parent_; p = p->parent_)
         {
+            MCTSNode *pp = p->parent_;
             sub += p->moveScore_;
-            p->parent_->avg_ = (p->parent_->avg_ * p->parent_->t_ - sub * t) / (p->parent_->t_ - t);
-            p->parent_->t_ -= t;
+            pp>avg_ = (pp>avg_ * pp>t_ - sub * t) / (pp>t_ - t);
+            pp>t_ -= t;
         }
     }
 
-    if (--cnt_ == 0 && parent_ != 0)
+    if (parent_ != 0 && --parent_->cnt_ <= 0)
         parent_->deactivate();
 }
 
@@ -73,9 +74,10 @@ void MCTSNode::transfer(MCTSNode *newParent)
         double ad = avg_;
         for (MCTSNode *p = this; p->parent_; p = p->parent_)
         {
+            MCTSNode *pp = p->parent_;
             ad += p->moveScore_;
-            p->parent_->avg_ = (p->parent_->avg_ * p->parent_->t_ + ad * t_) / (p->parent_->t_ + t);
-            p->parent_->t_ += t;
+            pp>avg_ = (pp>avg_ * pp>t_ + ad * t_) / (pp>t_ + t);
+            pp>t_ += t;
         }
     }
 }
@@ -91,11 +93,12 @@ bool MCTSNode::isAlive()
 
 void MCTSNode::leafHit()
 {
-    MCTSNode *leaf = this;
-    for (double mul = 1.05; leaf; mul = qMax(mul * 0.99, 1.001), leaf = leaf->parent_)
+    double mul = 1.05;
+    for (MCTSNode *leaf = this; leaf; leaf = leaf->parent_)
     {
         leaf->c_ *= mul;
         leaf->hasLeafHit_ = true;
+        mul = qMax(mul * 0.99, 1.001);
     }
 }
 
@@ -108,7 +111,7 @@ void MCTSNode::complete()
 {
     moves_.clear();
     MCTSNode *p = this;
-    for (;;)
+    for (;p ;)
     {
         int bi = -1;
         int topScore = 0;
@@ -122,14 +125,28 @@ void MCTSNode::complete()
         }
 
         if (bi == -1)
-            break;
+            break;  //# this may not happen
 
         moves_.append(p->moves_[bi]);
+
         p = p->children_[bi];
+        if (p && p->isComplete())
+        {
+            moves_.append(p->moves_);
+            break;
+        }
     }
 
     freeChildren();
+    deactivate();
     complete_ = true;
+
+    if (parent_)
+    {
+        parent_->alive_--;
+        if (parent_->alive_ <= 0)
+            parent_->complete();
+    }
 }
 
 void MCTSNode::freeChildren()

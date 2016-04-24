@@ -45,7 +45,8 @@ void MCTS::solve(Board *board, int simLim)
             frameLim = breakDepth_ >= S ? inspectLim_ : resourceFrame[breakDepth_];
         }
 
-        qDebug() << "inspect lim:" << inspectLim_ << " break depth:" << breakDepth_;
+        if (!(inspectLim_ & 0xf))
+            qDebug() << "inspect lim:" << inspectLim_ << " break depth:" << breakDepth_;
     }
 
     qDebug() << "top score: " << root->topScore_;
@@ -55,7 +56,7 @@ bool MCTS::iterate(MCTSNode *root, int depth)
 {
     if (root->isComplete())
     {
-        inspectLim_ = -1;
+        //inspectLim_ = -1;
         return false;
     }
 
@@ -67,7 +68,7 @@ bool MCTS::iterate(MCTSNode *root, int depth)
     {
         qDebug() << "leaf hit @depth:" << depth;
         root->leafHit();
-        root->deactivate();
+        //root->deactivate();
         root->complete();
         inspectLim_--;
         return false;
@@ -160,12 +161,15 @@ bool MCTS::iterate(MCTSNode *root, int depth)
             if (bi == -1)
             {
                 // there was no suitable child
-                root->deactivate();
                 if (!root->isAlive())
                 {
                     root->leafHit();
                     root->alive_ = 0;
                     root->complete();
+                }
+                else
+                {
+                    root->deactivate();
                 }
 
                 return false;
@@ -187,28 +191,25 @@ bool MCTS::iterate(MCTSNode *root, int depth)
     {
         if (!playout(nxt))
             return false;
-        root->update(nxt->moveScore_);
     }
     else //if (nxt->t_ > 0)
     {
         if (!iterate(nxt, depth + 1))
             return false;
     }
+    root->update(root->moveScore_ + nxt->topScore_);
 
-    if (children[bi]->isComplete())
+    /*if (nxt->isComplete() && root->isOwn(bi))
     {
-        // child was solved (Note: children[bi] == nxt is not necessarily true)
         // that child could have been found by somebody else and solved
         // either it already was then we should account for the leaf hit
-        if (nxt->isComplete())
-            root->leafHit();
 
         if (--root->alive_ == 0)
         {
             root->deactivate();
             root->complete();
         }
-    }
+    }*/
     return true;
 }
 
@@ -278,7 +279,6 @@ MCTSNode *MCTS::expandChild(MCTSNode *root, int index)
     long hashKey = board->hash();
     if (map_.contains(hashKey))
     {
-        qDebug() << "cache hit :" << hashKey;
         MCTSNode *child = map_[hashKey];
         root->children_[index] = child;
         if (cum <= child->cum_)
