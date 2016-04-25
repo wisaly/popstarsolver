@@ -33,6 +33,7 @@ void MCTSNode::update(int sample)
 {
     //#if (solved_)return;
     t_++;
+    Q_ASSERT(t_ > 0);
     avg_ += (sample - avg_) / t_;
     if (sample > topScore_)
         topScore_ = sample;
@@ -49,13 +50,16 @@ void MCTSNode::deactivate()
         {
             MCTSNode *pp = p->parent_;
             sub += p->moveScore_;
-            pp>avg_ = (pp>avg_ * pp>t_ - sub * t) / (pp>t_ - t);
-            pp>t_ -= t;
+            Q_ASSERT(pp->t_ > t);
+            pp->avg_ = (pp->avg_ * pp->t_ - sub * t) / (pp->t_ - t);
+            pp->t_ -= t;
         }
     }
 
     if (parent_ != 0 && --parent_->cnt_ <= 0)
         parent_->deactivate();
+
+    parent_ = nullptr;
 }
 
 void MCTSNode::transfer(MCTSNode *newParent)
@@ -71,13 +75,15 @@ void MCTSNode::transfer(MCTSNode *newParent)
     {
         // add the statistics of node kid to this node and all its ancestors
         int t = t_;
+        Q_ASSERT(t > 0);
         double ad = avg_;
         for (MCTSNode *p = this; p->parent_; p = p->parent_)
         {
             MCTSNode *pp = p->parent_;
             ad += p->moveScore_;
-            pp>avg_ = (pp>avg_ * pp>t_ + ad * t_) / (pp>t_ + t);
-            pp>t_ += t;
+            Q_ASSERT(pp->t_ > 0 || t > 0);
+            pp->avg_ = (pp->avg_ * pp->t_ + ad * t_) / (pp->t_ + t);
+            pp->t_ += t;
         }
     }
 }
@@ -109,35 +115,36 @@ bool MCTSNode::isOwn(int index)
 
 void MCTSNode::complete()
 {
-    moves_.clear();
+    QList<Move> bestMoves;
     MCTSNode *p = this;
     for (;p ;)
     {
         int bi = -1;
         int topScore = 0;
-        for (int i = 0; i < children_.count(); i++)
+        for (int i = 0; i < p->children_.count(); i++)
         {
-            if (children_[i] && (bi == -1 || children_[i]->topScore_ > topScore))
+            if (p->children_[i] && (bi == -1 || p->children_[i]->topScore_ > topScore))
             {
                 bi = i;
-                topScore = children_[i]->topScore_;
+                topScore = p->children_[i]->topScore_;
             }
         }
 
         if (bi == -1)
             break;  //# this may not happen
 
-        moves_.append(p->moves_[bi]);
+        bestMoves.append(p->moves_[bi]);
 
         p = p->children_[bi];
         if (p && p->isComplete())
         {
-            moves_.append(p->moves_);
+            bestMoves.append(p->moves_);
             break;
         }
     }
+    moves_ = bestMoves;
 
-    freeChildren();
+    //freeChildren();
     deactivate();
     complete_ = true;
 
@@ -153,11 +160,14 @@ void MCTSNode::freeChildren()
 {
     for (int i = 0; i < children_.count(); i++)
     {
-        children_[i]->ref_--;
-        if (children_[i] && isOwn(i) && children_[i]->ref_ < 1)
+        if (children_[i])
         {
-            delete children_[i];
-            children_[i] = nullptr;
+            children_[i]->ref_--;
+            if (isOwn(i) && children_[i]->ref_ < 1)
+            {
+                delete children_[i];
+                children_[i] = nullptr;
+            }
         }
     }
 }

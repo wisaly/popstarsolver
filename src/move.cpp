@@ -22,7 +22,7 @@ private:
     int e_[10];
 };
 
-Q_GLOBAL_STATIC(ScoreCache, g_scoreCache)
+ScoreCache g_scoreCache;
 
 int Move::score() const
 {
@@ -31,12 +31,12 @@ int Move::score() const
 
 int Move::score(int n)
 {
-    return g_scoreCache->score(n);
+    return g_scoreCache.score(n);
 }
 
 int Move::endScore(int n)
 {
-    return g_scoreCache->endScore(n);
+    return g_scoreCache.endScore(n);
 }
 
 bool Move::isIn(int x, int y)

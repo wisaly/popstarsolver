@@ -21,7 +21,7 @@ public:
     }
 };
 
-Q_GLOBAL_STATIC(ZobristMetrix, g_zobristMetrix)
+ZobristMetrix g_zobristMetrix;
 
 Board::Board()
 {
@@ -241,7 +241,7 @@ long Board::hash()
     long result = 0;
     for (int i = 0; i < N; i++)
         for (int j = 0; j < N; j++)
-            result ^= g_zobristMetrix->d_[i][j][d_[i][j]];
+            result ^= g_zobristMetrix.d_[i][j][d_[i][j]];
 
     return result;
 }

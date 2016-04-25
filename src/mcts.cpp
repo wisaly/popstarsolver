@@ -161,16 +161,15 @@ bool MCTS::iterate(MCTSNode *root, int depth)
             if (bi == -1)
             {
                 // there was no suitable child
+                root->leafHit();
+                root->complete();
+                /*root->deactivate();
                 if (!root->isAlive())
                 {
                     root->leafHit();
                     root->alive_ = 0;
                     root->complete();
-                }
-                else
-                {
-                    root->deactivate();
-                }
+                }*/
 
                 return false;
             }
@@ -187,7 +186,7 @@ bool MCTS::iterate(MCTSNode *root, int depth)
         return false;
     }
 
-    if (nxt->t_ == 0)
+    if (nxt->t_ == 0 && nxt->alive_ != 0)
     {
         if (!playout(nxt))
             return false;
@@ -197,7 +196,7 @@ bool MCTS::iterate(MCTSNode *root, int depth)
         if (!iterate(nxt, depth + 1))
             return false;
     }
-    root->update(root->moveScore_ + nxt->topScore_);
+    root->update(nxt->moveScore_ + nxt->topScore_);
 
     /*if (nxt->isComplete() && root->isOwn(bi))
     {
@@ -280,6 +279,7 @@ MCTSNode *MCTS::expandChild(MCTSNode *root, int index)
     if (map_.contains(hashKey))
     {
         MCTSNode *child = map_[hashKey];
+        child->ref_++;
         root->children_[index] = child;
         if (cum <= child->cum_)
         {
@@ -287,7 +287,6 @@ MCTSNode *MCTS::expandChild(MCTSNode *root, int index)
         }
         else
         {
-            child->ref_++;
             child->transfer(root);
             return child;
         }
