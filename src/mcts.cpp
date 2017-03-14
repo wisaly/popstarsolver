@@ -244,13 +244,13 @@ bool MCTS::playout(MCTSNode *leaf)
         }
     }
 
-    int blocks = Board::N * Board::N * c[0];
+    int blocks = Board::N * Board::N - c[0];
 
     int score = 0;
     for (;;)
     {
         // only use the simulation strategy if there's a significant number of blocks
-        QList<Move> mvs = blocks > 48 ? board.tabuMoves(tabu) : board.moves();
+        QList<Move> mvs = blocks > (Board::N * Board::N / 2) ? board.tabuMoves(tabu) : board.moves();
 
         // end of game
         if (mvs.count() == 0)
@@ -264,7 +264,7 @@ bool MCTS::playout(MCTSNode *leaf)
         // choose random move
         int mv = qrand() % mvs.count();
         // perform move
-        score = board.step(mvs[mv]);
+        score += board.step(mvs[mv]);
         blocks -= mvs[mv].size();
         inspectLim_--;
     }

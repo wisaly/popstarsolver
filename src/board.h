@@ -7,7 +7,7 @@ class Board
 {
 public:
     // board size, colors
-    enum { N = 10, NC = 5};
+    enum { N = 5, NC = 5};
 
     Board();
     Board(const Board &o);
